@@ -1072,9 +1072,6 @@ class SchedulerJob(BaseJob):
         :type states: Tuple[State]
         :return: List[TaskInstance]
         """
-        # TODO(saguziel): Change this to include QUEUED, for concurrency
-        # purposes we may want to count queued tasks
-        states_to_count_as_running = [State.RUNNING]
         executable_tis = []
 
         # Get all the queued task instances from associated with scheduled
@@ -1119,7 +1116,9 @@ class SchedulerJob(BaseJob):
         for task_instance in task_instances_to_examine:
             pool_to_task_instances[task_instance.pool].append(task_instance)
 
-        task_concurrency_map = self.__get_task_concurrency_map(states=states_to_count_as_running, session=session)
+        states_to_count_as_running = [State.RUNNING, State.QUEUED]
+        task_concurrency_map = self.__get_task_concurrency_map(
+            states=states_to_count_as_running, session=session)
 
         # Go through each pool, and queue up a task for execution if there are
         # any open slots in the pool.
@@ -1168,7 +1167,6 @@ class SchedulerJob(BaseJob):
                 simple_dag = simple_dag_bag.get_dag(dag_id)
 
                 if dag_id not in dag_id_to_possibly_running_task_count:
-                    # TODO(saguziel): also check against QUEUED state, see AIRFLOW-1104
                     dag_id_to_possibly_running_task_count[dag_id] = \
                         DAG.get_num_task_instances(
                             dag_id,
