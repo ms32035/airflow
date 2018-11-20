@@ -1483,7 +1483,7 @@ class Airflow(AirflowBaseView):
             session.merge(orm_dag)
         session.commit()
 
-        models.DagStat.update([dag_id])
+        models.DagStat.update([dag_id], session=session, dirty_only=False)
 
         dagbag.get_dag(dag_id)
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
