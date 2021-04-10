@@ -53,6 +53,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):  # pylint: disable=
     # [START security_viewer_perms]
     VIEWER_PERMISSIONS = [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),

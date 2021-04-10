@@ -290,7 +290,6 @@ class BaseSerialization:
         elif type_ == DAT.SET:
             return {cls._deserialize(v) for v in var}
         elif type_ == DAT.TUPLE:
-            # pylint: disable=consider-using-generator
             return tuple([cls._deserialize(v) for v in var])
         else:
             raise TypeError(f'Invalid type {type_!s} in deserialization.')
@@ -332,6 +331,30 @@ class BaseSerialization:
         return False
 
 
+class DependencyDetector:
+    """Detects dependencies between DAGs."""
+
+    @staticmethod
+    def detect_task_dependencies(task: BaseOperator) -> Optional[Dict]:
+        """Detects dependencies caused by tasks"""
+        if task.task_type == "TriggerDagRunOperator":
+            return {
+                "id": task.task_id,
+                "from": task.dag_id,
+                "to": getattr(task, "trigger_dag_id"),
+                "type": "trigger",
+            }
+        elif task.task_type == "ExternalTaskSensor":
+            return {
+                "id": task.task_id,
+                "from": getattr(task, "external_dag_id"),
+                "to": task.dag_id,
+                "type": "sensor",
+            }
+
+        return None
+
+
 class SerializedBaseOperator(BaseOperator, BaseSerialization):
     """A JSON serializable representation of operator.
 
@@ -346,6 +369,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         for k, v in signature(BaseOperator.__init__).parameters.items()
         if v.default is not v.empty
     }
+
+    dependency_detector = DependencyDetector()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -490,6 +515,11 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         setattr(op, "_is_dummy", bool(encoded_op.get("_is_dummy", False)))
 
         return op
+
+    @classmethod
+    def detect_dependencies(cls, op: BaseOperator) -> Optional[Dict]:
+        """Detects between DAG dependencies for the operator."""
+        return cls.dependency_detector.detect_task_dependencies(op)
 
     @classmethod
     def _is_excluded(cls, var: Any, attrname: str, op: BaseOperator):
@@ -645,6 +675,11 @@ class SerializedDAG(DAG, BaseSerialization):
             serialize_dag = cls.serialize_to_json(dag, cls._decorated_fields)
 
             serialize_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
+            serialize_dag["dependencies"] = [
+                t
+                for t in (SerializedBaseOperator.detect_dependencies(task) for task in dag.task_dict.values())
+                if t is not None
+            ]
             serialize_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
 
             # has_on_*_callback are only stored if the value is True, as the default is False

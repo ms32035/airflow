@@ -66,6 +66,12 @@
         "maxProperties": 1
       }
     },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
     "dag": {
       "type": "object",
       "properties": {
@@ -102,7 +108,8 @@
         "_task_group": {"anyOf": [
           { "type": "null" },
           { "$ref": "#/definitions/task_group" }
-        ]}
+        ]},
+        "dependencies": { "$ref": "#/definitions/dependencies" }
       },
       "required": [
         "_dag_id",
